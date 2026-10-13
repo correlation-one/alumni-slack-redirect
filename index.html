@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Amazon Career Choice Alumni Slack</title>
+<style>
+  body { font-family: system-ui, Arial, sans-serif; text-align: center; padding: 3rem 1.25rem; color: #1d1c1d; background: #fff; }
+  a { color: #1264a3; font-weight: 600; }
+  .btn { display: inline-block; margin-top: 1rem; padding: .8rem 1.6rem; background: #1264a3; color: #fff; border-radius: 6px; text-decoration: none; font-weight: 600; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+  <p id="status">Taking you to the Alumni Slack community...</p>
+  <p id="manual" class="hidden">If you are not redirected automatically, <a id="joinLink" class="btn" href="#">click here to join</a>.</p>
+  <p id="error" class="hidden">Alumni Slack access is temporarily unavailable. Please email <a id="contactLink" href="#"></a> and we will get you in.</p>
+
+<script>
+// Maintainers: only the settings in this block need to change. See README.md.
+
+var TIMEZONE = 'America/New_York';
+var CONTACT_EMAIL = 'pd-ops@correlation-one.com';
+var TEST_MODE = false;
+
+// Each link is active from start to end (inclusive). Keep windows short (about 50 days) and back to back.
+// Windows should not overlap. If they ever do, the link with the most recent start date wins, regardless
+// of order here. If no window matches today, FALLBACK_URL is used.
+var INVITE_SCHEDULE = [
+  { owner: 'JB',  url: 'https://join.slack.com/t/c1-amazon-alumni/shared_invite/zt-3f9gbfqyu-jgeb74NeRxXJu9ljMAAhjQ', start: '2026-10-13', end: '2026-12-01' },
+  { owner: 'Ace', url: 'PASTE_ACE_LINK_HERE', start: '2026-12-02', end: '2027-01-20' }
+];
+
+// Backup link (Raya), used only when no scheduled window is active.
+var FALLBACK_URL = 'PASTE_RAYA_LINK_HERE';
+
+(function () {
+  var SLACK_RE = /^https:\/\/join\.slack\.com\/t\/[A-Za-z0-9\-]+\/shared_invite\/[A-Za-z0-9\-~]+/i;
+  var DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+  function el(id) { return document.getElementById(id); }
+  function show(id) { el(id).classList.remove('hidden'); }
+  function hide(id) { el(id).classList.add('hidden'); }
+
+  function showError() {
+    var c = el('contactLink');
+    c.href = 'mailto:' + CONTACT_EMAIL;
+    c.textContent = CONTACT_EMAIL;
+    hide('status'); hide('manual'); show('error');
+  }
+
+  function isSlackUrl(u) { return typeof u === 'string' && SLACK_RE.test(u.trim()); }
+
+  function isRealDate(s) {
+    if (typeof s !== 'string' || !DATE_RE.test(s)) return false;
+    var p = s.split('-').map(Number);
+    var dt = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+    return dt.getUTCFullYear() === p[0] && dt.getUTCMonth() === p[1] - 1 && dt.getUTCDate() === p[2];
+  }
+
+  function todayInTz(tz) {
+    try {
+      var parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit'
+      }).formatToParts(new Date());
+      var y = '', m = '', d = '';
+      parts.forEach(function (x) {
+        if (x.type === 'year') y = x.value;
+        if (x.type === 'month') m = x.value;
+        if (x.type === 'day') d = x.value;
+      });
+      var out = y + '-' + m + '-' + d;
+      return DATE_RE.test(out) ? out : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function getToday() {
+    if (TEST_MODE) {
+      var sim = new URLSearchParams(location.search).get('date');
+      if (sim && isRealDate(sim)) return sim;
+    }
+    return todayInTz(TIMEZONE);
+  }
+
+  function pickUrl(today) {
+    var best = null;
+    if (Array.isArray(INVITE_SCHEDULE)) {
+      for (var i = 0; i < INVITE_SCHEDULE.length; i++) {
+        var item = INVITE_SCHEDULE[i];
+        if (!item || !isSlackUrl(item.url)) continue;
+        if (!isRealDate(item.start) || !isRealDate(item.end) || item.start > item.end) continue;
+        if (item.start <= today && today <= item.end) {
+          if (!best || item.start > best.start) best = item;
+        }
+      }
+    }
+    if (best) return best.url.trim();
+    return isSlackUrl(FALLBACK_URL) ? FALLBACK_URL.trim() : null;
+  }
+
+  function run() {
+    var today = getToday();
+    var url = today ? pickUrl(today) : null;
+    if (!url) { showError(); return; }
+    el('joinLink').href = url;
+    show('manual');
+    window.location.replace(url);
+  }
+
+  run();
+})();
+</script>
+</body>
+</html>
